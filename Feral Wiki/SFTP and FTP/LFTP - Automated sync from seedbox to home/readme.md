@@ -30,7 +30,7 @@ cygrunsrv
 cron
 ~~~
 
-Create a file called `synctorrents.sh`, replace all < > with your values.  The only code you need to modify is within the top 6 lines.
+Create a file called `synctorrents.sh` or something equally clever, replace all < > with your values.  The only code you need to modify is within the top 6 lines.
 
 **Important note:** bash takes EOL (End of line) quite seriously. You will need to use UNIX/LF style end of lines for bash scripts. See this FAQ for info [Text editing - Over FTP or SFTP](https://www.feralhosting.com/faq/view?question=219)
 
@@ -54,21 +54,24 @@ pass="password"
 host="server.feralhosting.com"
 remote_dir="/folder/you/want/to/copy"
 local_dir="/cygdrive/s/lftp/somefolder/where/you.want/your/files/"
- 
-trap "rm -f /tmp/synctorrent.lock" SIGINT SIGTERM
-if [ -e /tmp/synctorrent.lock ]
+
+
+base_name=$( basename "$0")
+lock_file="/tmp/${base_name}.lock"
+trap "rm -f \"$lock_file\"" SIGINT SIGTERM
+if [ -e "$lock_file" ]
 then
-  echo "Synctorrent is running already."
+  echo "$base_name is running already."
   exit 1
 else
-  touch /tmp/synctorrent.lock
+  touch "$lock_file"
   lftp -u $login,$pass $host << EOF
   set ftp:ssl-allow no
   set mirror:use-pget-n 5
-  mirror -c -P5 --log=synctorrents.log $remote_dir $local_dir
+  mirror -c -P5 --log="/var/log/${base_name}.log" $remote_dir $local_dir
   quit
 EOF
-  rm -f /tmp/synctorrent.lock
+  rm -f "$lock_file"
   trap - SIGINT SIGTERM
   exit 0
 fi
@@ -84,19 +87,22 @@ host="server.feralhosting.com"
 remote_dir="/folder/you/want/to/copy"
 local_dir="/cygdrive/s/lftp/somefolder/where/you.want/your/files/"
 
-trap "rm -f /tmp/synctorrent.lock" SIGINT SIGTERM
-if [ -e /tmp/synctorrent.lock ]
+
+base_name=$( basename "$0")
+lock_file="/tmp/${base_name}.lock"
+trap "rm -f \"$lock_file\"" SIGINT SIGTERM
+if [ -e "$lock_file" ]
 then
-echo "Synctorrent is running already."
+echo "$base_name is running already."
 exit 1
 else
-touch /tmp/synctorrent.lock
+touch "$lock_file"
 lftp -p 22 -u $login,$pass sftp://$host << EOF
 set mirror:use-pget-n 5
-mirror -c -P5 --log=synctorrents.log $remote_dir $local_dir
+mirror -c -P5 --log="/var/log/${base_name}.log" $remote_dir $local_dir
 quit
 EOF
-rm -f /tmp/synctorrent.lock
+rm -f "$lock_file"
 trap - SIGINT SIGTERM
 exit 0
 fi
@@ -120,7 +126,6 @@ This makes lftp try to split up files in 5 pieces for parallel downloading. Like
 -P5
 ~~~
 
- 
 Means it will download at most 5 files in parallel (for a total 25 connections). Those 2 combined work wonders. In my case, I always end up downloading the files at the limit of my connection, but feel free to play with them and find what works best for you.
 
 ~~~
@@ -128,6 +133,20 @@ Means it will download at most 5 files in parallel (for a total 25 connections).
 ~~~
 
 Just tells it to try and resume an interrupted download if it' s the case.
+
+
+
+####Where are the lock files?
+
+~~~
+/tmp
+~~~
+
+####Where are the log files?
+
+~~~
+/var/log
+~~~
 
 **Creating a crontab.** 
 
